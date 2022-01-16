@@ -37,7 +37,7 @@ source "$ROOT/common.sh"
 gcloud container clusters get-credentials "$CLUSTER_NAME" --zone "$ZONE"
 
 # Verify BinAuthZ policy is available/enabled
-if gcloud beta container binauthz policy export | grep "defaultAdmissionRule" > /dev/null; then
+if gcloud container binauthz policy export | grep "defaultAdmissionRule" > /dev/null; then
   echo "Validation Passed: a working BinAuthZ policy was available"
 else
   echo "Validation Failed: a working BinAuthZ policy was NOT available"
