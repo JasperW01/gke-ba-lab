@@ -7,11 +7,6 @@
 * [Google Kubernetes Engine Binary Authorization Demo](#google-kubernetes-engine-binary-authorization-demo)
 * [Introduction](#introduction)
 * [Architecture](#architecture)
-* [Prerequisites](#prerequisites)
-  * [Run Demo in a Google Cloud Shell](#run-demo-in-a-google-cloud-shell)
-  * [Supported Operating Systems](#supported-operating-systems)
-  * [Tools](#tools)
-  * [Versions](#versions)
 * [Deployment Steps](#deployment-steps)
 * [Validation](#validation)
 * [Tear Down](#tear-down)
@@ -32,7 +27,7 @@ Some of the key concerns are:
 
 From a security standpoint, not enforcing where images originate from presents several risks:
 
-* A malicious actor that has compromised a container may be able to obtain sufficient cluster privileges to launch other containers from an unknown source without enforcement.
+* A malicious actor that has compromised a container may be able to obtain sufficient cluster privileges to launch others containers from an unknown source without enforcement.
 * An authorized user with the permissions to create pods may be able to accidentally or maliciously run an undesired container directly inside a cluster.
 * An authorized user may accidentally or maliciously overwrite a docker image tag with a functional container that has undesired code silently added to it, and Kubernetes will pull and deploy that container as a part of a deployment automatically.
 
@@ -72,66 +67,6 @@ Once the container image has been built and the necessary attestations have been
 1. If the container image conforms to the policy, it is allowed to run.  If the container image fails to meet the policy, an error is presented to the API client with a message describing why it was prevented.
 
 ![SDLC](images/enforce.png)
-
-## Prerequisites
-
-* Access to an existing Google Cloud project with the Kubernetes Engine service enabled. If you do not have a Google Cloud account, please signup for a free trial [here][2].
-* A Google Cloud account and project is required for this demo. The project must have the proper quota to run a Kubernetes Engine cluster with at least 2 vCPUs and 7.5GB of RAM. How to check your account's quota is documented here: [quotas][1].
-
-### Supported Operating Systems
-
-This demo can be run from MacOS, Linux, or, alternatively, directly from [Google Cloud Shell](https://cloud.google.com/shell/docs/). The latter option is the simplest as it only requires browser access to GCP and no additional software is required. Instructions for both alternatives can be found below.
-
-### Deploying Demo from Google Cloud Shell
-
-_NOTE: This section can be skipped if the cloud deployment is being performed without Cloud Shell, for instance from a local machine or from a server outside GCP._
-
-[Google Cloud Shell](https://cloud.google.com/shell/docs/) is a browser-based terminal that Google provides to interact with your GCP resources. It is backed by a free Compute Engine instance that comes with many useful tools already installed, including everything required to run this demo.
-
-Click the button below to open the demo in your Cloud Shell:
-
-[![Open in Cloud Shell](http://gstatic.com/cloudssh/images/open-btn.svg)](https://console.cloud.google.com/cloudshell/open?git_repo=https%3A%2F%2Fgithub.com%2FGoogleCloudPlatform%2Fgke-binary-auth-demo&page=editor&tutorial=README.md)
-
-To prepare [gcloud](https://cloud.google.com/sdk/gcloud/) for use in Cloud Shell, execute the following command in the terminal at the bottom of the browser window you just opened:
-
-```console
-gcloud init
-```
-
-Respond to the prompts and continue with the following deployment instructions. The prompts will include the account you want to run as, the current project, and, optionally, the default region and zone. These configure Cloud Shell itself-the actual project, region, and zone, used by the demo will be configured separately below.
-
-Run the following commands to install the random number generator tools.  This will allow your Cloud Shell to have the entropy needed to create the PGP key in a later step:
-
-```console
-sudo apt-get install rng-tools
-sudo rngd -r /dev/urandom
-```
-
-### Deploying the Demo without Cloud Shell
-
-_NOTE: If the demo is being deployed via Cloud Shell, as described above, this section can be skipped._
-
-For deployments without using Cloud Shell, you will need to have access to a computer providing a [bash](https://www.gnu.org/software/bash/) shell with the following tools installed:
-
-* [Google Cloud SDK (v214.0.0 or later)](https://cloud.google.com/sdk/downloads) with the `beta` components installed
-* [kubectl (v1.10.0 or later)](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
-* [git](https://git-scm.com/)
-* [docker](https://www.docker.com)
-* [GnuPG](https://www.gnupg.org/)
-
-Use `git` to clone this project to your local machine:
-
-```console
-git clone https://github.com/GoogleCloudPlatform/gke-binary-auth-demo
-```
-
-When downloading is complete, change your current working directory to the new project:
-
-```console
-cd gke-binary-auth-demo
-```
-
-Continue with the instructions below, running all commands from this directory.
 
 ## Deployment Steps
 
@@ -318,7 +253,7 @@ Error from server (Forbidden): error when creating "STDIN": pods "nginx" is forb
 To be able to see when any and all images are blocked by the Binary Authorization Policy, navigate to the GKE Audit Logs in Stackdriver and filter on those error messages related to this activity.
 
 1. In the GCP console navigate to the **Stackdriver** -> **Logging** page
-1. On this page, click the downward arrow on the far right of the "Filter by label or text search" input field, and select `Convert to advanced filter`.  Populate the text box with `resource.type="k8s_cluster" protoPayload.status.message="PERMISSION_DENIED"`
+1. On this page, click the downward arrow on the far right of the "Filter by label or text search" input field, and select `Convert to advanced filter`.  Populate the text box with `resource.type="k8s_cluster" protoPayload.status.message="Forbidden"`
 1. You should see errors corresponding to the blocking of the `nginx` pod from running.
 
 #### Denying Images Except From Whitelisted Container Registries
@@ -421,14 +356,14 @@ curl -X POST \
     -H "Content-Type: application/json" \
     -H "Authorization: Bearer $(gcloud auth print-access-token)"  \
     --data-binary @${NOTE_PAYLOAD_PATH}  \
-    "https://containeranalysis.googleapis.com/v1/projects/${PROJECT_ID}/notes/?noteId=${NOTE_ID}"
+    "https://containeranalysis.googleapis.com/v1beta1/projects/${PROJECT_ID}/notes/?noteId=${NOTE_ID}"
 ```
 
 You should see the output from the prior command display the created note, but the following command will also list the created note:
 
 ```console
 curl -H "Authorization: Bearer $(gcloud auth print-access-token)"  \
-    "https://containeranalysis.googleapis.com/v1/projects/${PROJECT_ID}/notes/${NOTE_ID}"
+    "https://containeranalysis.googleapis.com/v1beta1/projects/${PROJECT_ID}/notes/${NOTE_ID}"
 ```
 
 ##### Creating a PGP Signing Key
@@ -472,7 +407,7 @@ Add the PGP Key to the Attestor:
 gcloud --project="${PROJECT_ID}" \
     beta container binauthz attestors public-keys add \
     --attestor="${ATTESTOR}" \
-    --public-key-file="${PGP_PUB_KEY}"
+    --pgp-public-key-file="${PGP_PUB_KEY}"
 ```
 
 List the newly created Attestor:
@@ -553,7 +488,7 @@ gcloud beta container binauthz attestations create \
     --artifact-url="${IMAGE_PATH}@${IMAGE_DIGEST}" \
     --attestor="projects/${PROJECT_ID}/attestors/${ATTESTOR}" \
     --signature-file=${GENERATED_SIGNATURE} \
-    --pgp-key-fingerprint="${PGP_FINGERPRINT}"
+    --public-key-id="${PGP_FINGERPRINT}"
 ```
 
 View the newly created attestation:
@@ -678,7 +613,7 @@ Delete the Container Analysis note:
 ```console
 curl -X DELETE \
     -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-    "https://containeranalysis.googleapis.com/v1/projects/${PROJECT_ID}/notes/${NOTE_ID}"
+    "https://containeranalysis.googleapis.com/v1beta1/projects/${PROJECT_ID}/notes/${NOTE_ID}"
 ```
 
 ## Troubleshooting
